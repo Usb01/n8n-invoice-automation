@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="886" height="216" viewBox="0 0 886 216" font-family="Inter, Segoe UI, Arial, sans-serif">
+<rect width="886" height="216" fill="#f4f4f6"/>
+<defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#d4d4d8"/></pattern></defs>
+<rect width="886" height="216" fill="url(#dots)"/>
+<path d="M136,88.0 C208.0,88.0 208.0,88.0 280,88.0" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<circle cx="280" cy="88.0" r="4" fill="#9ca3af"/>
+<path d="M356,88.0 C428.0,88.0 428.0,88.0 500,88.0" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<circle cx="500" cy="88.0" r="4" fill="#9ca3af"/>
+<path d="M576,88.0 C648.0,88.0 648.0,88.0 720,88.0" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<circle cx="720" cy="88.0" r="4" fill="#9ca3af"/>
+<path d="M90,50 H126 Q136,50 136,60 V116 Q136,126 126,126 H90 A30,38 0 0 1 90,50 Z" fill="#fff" stroke="#0ea5e9" stroke-width="2"/>
+<text x="98.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#0ea5e9">Schedule</text>
+<text x="98.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Every weekday 8:00</text>
+<rect x="280" y="50" width="76" height="76" rx="10" fill="#fff" stroke="#0f9d58" stroke-width="2"/>
+<text x="318.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#0f9d58">Sheets</text>
+<text x="318.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Read Invoices</text>
+<text x="318.0" y="159" text-anchor="middle" font-size="12.5" fill="#111827">sheet</text>
+<rect x="500" y="50" width="76" height="76" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="2"/>
+<text x="538.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#f59e0b">JS</text>
+<text x="538.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Find invoices due</text>
+<text x="538.0" y="159" text-anchor="middle" font-size="12.5" fill="#111827">soon</text>
+<rect x="720" y="50" width="76" height="76" rx="10" fill="#fff" stroke="#611f69" stroke-width="2"/>
+<text x="758.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#611f69">Slack</text>
+<text x="758.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Post digest</text>
+</svg>

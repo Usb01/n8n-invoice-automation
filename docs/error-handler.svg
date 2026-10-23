@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="446" height="216" viewBox="0 0 446 216" font-family="Inter, Segoe UI, Arial, sans-serif">
+<rect width="446" height="216" fill="#f4f4f6"/>
+<defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#d4d4d8"/></pattern></defs>
+<rect width="446" height="216" fill="url(#dots)"/>
+<path d="M136,88.0 C208.0,88.0 208.0,88.0 280,88.0" fill="none" stroke="#9ca3af" stroke-width="2"/>
+<circle cx="280" cy="88.0" r="4" fill="#9ca3af"/>
+<path d="M90,50 H126 Q136,50 136,60 V116 Q136,126 126,126 H90 A30,38 0 0 1 90,50 Z" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+<text x="98.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#dc2626">Error</text>
+<text x="98.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Error Trigger</text>
+<rect x="280" y="50" width="76" height="76" rx="10" fill="#fff" stroke="#611f69" stroke-width="2"/>
+<text x="318.0" y="93.0" text-anchor="middle" font-size="14" font-weight="700" fill="#611f69">Slack</text>
+<text x="318.0" y="144" text-anchor="middle" font-size="12.5" fill="#111827">Alert</text>
+<text x="318.0" y="159" text-anchor="middle" font-size="12.5" fill="#111827">#automation-alerts</text>
+</svg>

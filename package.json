@@ -1,0 +1,9 @@
+{
+  "name": "n8n-invoice-automation",
+  "private": true,
+  "description": "n8n workflows: AI invoice extraction from email/uploads into Google Sheets with Slack alerts",
+  "scripts": {
+    "build": "python3 scripts/build_workflows.py",
+    "test": "node --test tests/*.test.js"
+  }
+}

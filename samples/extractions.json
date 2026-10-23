@@ -1,0 +1,47 @@
+{
+  "clean": {
+    "vendor_name": "Gulf Tech Supplies",
+    "vendor_vat_number": "310123456700003",
+    "invoice_number": "INV-2026-0412",
+    "invoice_date": "2026-10-05",
+    "due_date": "2026-11-04",
+    "currency": "SAR",
+    "subtotal": 10000,
+    "vat_amount": 1500,
+    "total": 11500,
+    "line_items": [
+      {"description": "Dell Latitude 5450 laptop", "quantity": 4, "unit_price": 2250, "amount": 9000},
+      {"description": "USB-C docking station", "quantity": 4, "unit_price": 250, "amount": 1000}
+    ],
+    "confidence": 0.95
+  },
+  "line_item_mismatch": {
+    "vendor_name": "Eastern Print House",
+    "vendor_vat_number": "300998877600003",
+    "invoice_number": "EPH-7781",
+    "invoice_date": "2026-10-12",
+    "due_date": "2026-10-26",
+    "currency": "SAR",
+    "subtotal": 2400,
+    "vat_amount": 360,
+    "total": 2760,
+    "line_items": [
+      {"description": "Business cards x500", "quantity": 6, "unit_price": 150, "amount": 900},
+      {"description": "Roll-up banner", "quantity": 2, "unit_price": 600, "amount": 1200}
+    ],
+    "confidence": 0.9
+  },
+  "usd": {
+    "vendor_name": "CloudHost Inc.",
+    "vendor_vat_number": null,
+    "invoice_number": "CH-55120",
+    "invoice_date": "2026-10-01",
+    "due_date": "2026-10-31",
+    "currency": "USD",
+    "subtotal": 480,
+    "vat_amount": 0,
+    "total": 480,
+    "line_items": [{"description": "VPS hosting – October", "quantity": 1, "unit_price": 480, "amount": 480}],
+    "confidence": 0.97
+  }
+}

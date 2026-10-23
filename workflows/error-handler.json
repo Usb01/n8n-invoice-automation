@@ -1,0 +1,66 @@
+{
+  "name": "Error handler – Slack alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "beec8e46-ac56-5196-97da-6cb211de897f",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#automation-alerts",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: *{{ $json.workflow.name }}* failed at node *{{ $json.execution.lastNodeExecuted }}*\n{{ $json.execution.error.message }}\n<{{ $json.execution.url }}|Open execution>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "07bf8faa-c8f4-5e39-91e6-cc3bf87a2677",
+      "name": "Alert #automation-alerts",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        220,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Alert #automation-alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Asia/Riyadh"
+  },
+  "tags": [
+    {
+      "name": "ops"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

@@ -1,0 +1,534 @@
+{
+  "name": "Invoice intake – email/upload → AI extraction → Sheets + Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf -label:invoice-processed (invoice OR فاتورة)"
+        },
+        "options": {
+          "downloadAttachments": true,
+          "dataPropertyAttachmentsPrefixName": "attachment_"
+        }
+      },
+      "id": "9fdbea51-36fe-5f6a-ade2-5e90e03fc627",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice-upload",
+        "responseMode": "onReceived",
+        "options": {
+          "binaryPropertyName": "file"
+        }
+      },
+      "id": "e6e461f1-0c48-529f-a492-00a4f5f5fe74",
+      "name": "Upload webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "413332e0-b388-5c70-ac5d-85c77bd2be43"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "709ea2f5-c4ce-552a-821d-03a31c09c9b9",
+              "name": "source",
+              "value": "email",
+              "type": "string"
+            },
+            {
+              "id": "1c14f0a1-c448-58ed-a230-030741af69fb",
+              "name": "from",
+              "value": "={{ $json.from?.value?.[0]?.address || $json.from?.text }}",
+              "type": "string"
+            },
+            {
+              "id": "a2f00e4c-d338-5b0d-9e22-e36748e1f0eb",
+              "name": "file_name",
+              "value": "={{ $binary.attachment_0?.fileName }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {
+          "stripBinary": false
+        }
+      },
+      "id": "58f02144-d1a6-50d3-bbb2-b4303bca908e",
+      "name": "Tag email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "394ec372-1bab-59cc-8d86-49343643f7b8",
+              "name": "source",
+              "value": "upload",
+              "type": "string"
+            },
+            {
+              "id": "6023cad4-0020-5210-81ab-5109ad55c157",
+              "name": "from",
+              "value": "={{ $json.body?.uploaded_by || 'webhook' }}",
+              "type": "string"
+            },
+            {
+              "id": "f3de422e-5af4-5b5f-a251-0f67df80225e",
+              "name": "file_name",
+              "value": "={{ Object.values($binary)[0]?.fileName }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {
+          "stripBinary": false
+        }
+      },
+      "id": "899e1222-a48c-5ff1-9a14-8f64ce342351",
+      "name": "Tag upload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "={{ Object.keys($binary)[0] }}",
+        "options": {
+          "keepSource": "json",
+          "joinPages": true
+        }
+      },
+      "id": "b6cb3451-16c3-5596-8309-6c8737494aa0",
+      "name": "Extract PDF text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// n8n Code node — \"Build extraction request\" (mode: run once for each item)\n// Input:  $json.text  (from Extract From File), $json.source / $json.from (where it came from)\n// Output: { request, meta } – request is posted as-is to the OpenAI chat completions API.\n\nconst MAX_CHARS = 12000; // invoices are short; this keeps token cost predictable\n\nconst text = String($json.text || '').replace(/\\s+\\n/g, '\\n').trim().slice(0, MAX_CHARS);\n\nconst system = [\n  'You extract data from supplier invoices for an accounts payable team in Saudi Arabia.',\n  'Return ONLY a JSON object with these keys:',\n  'vendor_name, vendor_vat_number, invoice_number, invoice_date (YYYY-MM-DD), due_date (YYYY-MM-DD or null),',\n  'currency (ISO code), subtotal, vat_amount, total (numbers, no thousands separators),',\n  'line_items (array of {description, quantity, unit_price, amount}), confidence (0-1).',\n  'Use null for anything not present. Never guess a VAT number or invoice number.',\n].join(' ');\n\nreturn {\n  json: {\n    request: {\n      model: 'gpt-4o-mini',\n      temperature: 0,\n      response_format: { type: 'json_object' },\n      messages: [\n        { role: 'system', content: system },\n        { role: 'user', content: `Invoice text:\\n\"\"\"\\n${text}\\n\"\"\"` },\n      ],\n    },\n    meta: {\n      source: $json.source || 'email',\n      from: $json.from || null,\n      file_name: $json.file_name || null,\n      received_at: new Date().toISOString(),\n      text_length: text.length,\n    },\n  },\n};\n"
+      },
+      "id": "67851783-52a8-52f7-8893-943690cd4b71",
+      "name": "Build extraction request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "14624ccb-353e-5d50-9365-08a87cddc713",
+      "name": "OpenAI – extract fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        110
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// n8n Code node — \"Validate invoice\" (mode: run once for each item)\n// Input:  OpenAI chat completion response ($json.choices[0].message.content)\n//         + meta from \"Build extraction request\"\n// Output: one flat row ready for Google Sheets, with status \"ok\" or \"review\" and the reasons.\n\nconst VAT_RATE = 0.15;          // KSA standard rate\nconst TOLERANCE = 0.05;         // rounding differences on totals, in currency units\nconst MIN_CONFIDENCE = 0.7;\n\nconst meta = $('Build extraction request').item.json.meta;\n\nlet data;\ntry {\n  data = JSON.parse($json.choices[0].message.content);\n} catch (e) {\n  return { json: { ...emptyRow(meta), status: 'review', issues: 'model did not return valid JSON' } };\n}\n\nconst num = (v) => {\n  if (v === null || v === undefined || v === '') return null;\n  const n = Number(String(v).replace(/[^0-9.-]/g, ''));\n  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;\n};\n\nconst isoDate = (v) => {\n  if (!v) return null;\n  const s = String(v).trim();\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4})$/); // dd/mm/yyyy\n  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;\n  return null;\n};\n\nconst subtotal = num(data.subtotal);\nconst vat = num(data.vat_amount);\nconst total = num(data.total);\nconst currency = (data.currency || 'SAR').toUpperCase();\nconst issues = [];\n\nif (!data.vendor_name) issues.push('missing vendor');\nif (!data.invoice_number) issues.push('missing invoice number');\nif (total === null) issues.push('missing total');\n\nconst invoiceDate = isoDate(data.invoice_date);\nconst dueDate = isoDate(data.due_date);\nif (!invoiceDate) issues.push('invoice date unreadable');\nif (invoiceDate && dueDate && dueDate < invoiceDate) issues.push('due date before invoice date');\n\nif (subtotal !== null && vat !== null && total !== null && Math.abs(subtotal + vat - total) > TOLERANCE) {\n  issues.push(`subtotal + VAT (${(subtotal + vat).toFixed(2)}) ≠ total (${total.toFixed(2)})`);\n}\nif (currency === 'SAR' && subtotal !== null && vat !== null && Math.abs(subtotal * VAT_RATE - vat) > Math.max(TOLERANCE, subtotal * 0.002)) {\n  issues.push(`VAT is not 15% of subtotal`);\n}\n\nconst vatNo = data.vendor_vat_number ? String(data.vendor_vat_number).replace(/\\s/g, '') : null;\nif (currency === 'SAR' && vatNo && !/^3\\d{13}3$/.test(vatNo)) issues.push('vendor VAT number format looks wrong');\n\nconst items = Array.isArray(data.line_items) ? data.line_items : [];\nconst itemsSum = items.reduce((s, it) => s + (num(it.amount) || 0), 0);\nif (items.length && subtotal !== null && Math.abs(itemsSum - subtotal) > TOLERANCE) {\n  issues.push(`line items add up to ${itemsSum.toFixed(2)}, subtotal says ${subtotal.toFixed(2)}`);\n}\n\nconst confidence = num(data.confidence);\nif (confidence !== null && confidence < MIN_CONFIDENCE) issues.push(`low extraction confidence (${confidence})`);\n\nconst vendor = (data.vendor_name || '').trim();\nreturn {\n  json: {\n    key: `${vendor.toLowerCase().replace(/[^a-z0-9]/g, '')}|${String(data.invoice_number || '').trim()}`,\n    status: issues.length ? 'review' : 'ok',\n    issues: issues.join('; '),\n    vendor,\n    vendor_vat_number: vatNo,\n    invoice_number: data.invoice_number || null,\n    invoice_date: invoiceDate,\n    due_date: dueDate,\n    currency,\n    subtotal,\n    vat_amount: vat,\n    total,\n    line_items: items.length,\n    source: meta.source,\n    from: meta.from,\n    file_name: meta.file_name,\n    received_at: meta.received_at,\n  },\n};\n\nfunction emptyRow(m) {\n  return { key: null, vendor: null, invoice_number: null, total: null, source: m.source, from: m.from,\n           file_name: m.file_name, received_at: m.received_at };\n}\n"
+      },
+      "id": "a3751f3a-5910-54f9-98ca-feb44f3a30ff",
+      "name": "Validate invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.key || $json.received_at }}",
+        "options": {}
+      },
+      "id": "ec14bb44-d2fa-5bb9-b300-63d4d351b982",
+      "name": "Skip already processed",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cba8f7ef-d372-5917-b020-0e092ac05c69",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1e5dd19-a1f5-5dd3-9e6e-27b01516fe20",
+      "name": "Passed checks?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "c80e8220-537d-5477-975a-e824bb891c09",
+      "name": "Sheet: Invoices",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Needs review",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "42094c3a-5c86-5c2d-86d7-6a7e33cf2663",
+      "name": "Sheet: Needs review",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// n8n Code node — \"Format Slack message\" (mode: run once for each item)\nconst fmt = (n) => (n === null || n === undefined ? '–' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }));\n\nconst r = $json;\nconst head = r.status === 'ok'\n  ? `:white_check_mark: Invoice logged – *${r.vendor}* #${r.invoice_number}`\n  : `:warning: Invoice needs review – *${r.vendor || 'unknown vendor'}* #${r.invoice_number || '?'}`;\n\nconst lines = [\n  head,\n  `Total: *${r.currency || ''} ${fmt(r.total)}* (VAT ${fmt(r.vat_amount)})  ·  Due: ${r.due_date || '–'}`,\n  `From: ${r.from || r.source}${r.file_name ? `  ·  File: ${r.file_name}` : ''}`,\n];\nif (r.issues) lines.push(`Issues: ${r.issues}`);\n\nreturn { json: { ...r, slack_text: lines.join('\\n') } };\n"
+      },
+      "id": "b1211bf7-d4f2-55c9-9711-a0ea929da538",
+      "name": "Format Slack message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#finance-invoices",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "7ea6cfc3-7708-5658-8be4-d1dd5953fc94",
+      "name": "Notify finance",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2200,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Invoice intake\nPDF invoices arrive by **email** (Gmail label filter) or **upload** (POST multipart to /webhook/invoice-upload).\n\nOpenAI extracts the fields → a Code node checks totals, 15% VAT, VAT number format and dates → clean invoices go to **Invoices**, anything suspicious goes to **Needs review**. Finance gets a Slack message either way.",
+        "height": 220,
+        "width": 520
+      },
+      "id": "3d1eedcb-fa67-5092-b280-7d6da494b356",
+      "name": "Sticky: how it works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -260
+      ]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Tag email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload webhook": {
+      "main": [
+        [
+          {
+            "node": "Tag upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag email": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag upload": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF text": {
+      "main": [
+        [
+          {
+            "node": "Build extraction request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build extraction request": {
+      "main": [
+        [
+          {
+            "node": "OpenAI – extract fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI – extract fields": {
+      "main": [
+        [
+          {
+            "node": "Validate invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate invoice": {
+      "main": [
+        [
+          {
+            "node": "Skip already processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip already processed": {
+      "main": [
+        [
+          {
+            "node": "Passed checks?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passed checks?": {
+      "main": [
+        [
+          {
+            "node": "Sheet: Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet: Needs review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet: Invoices": {
+      "main": [
+        [
+          {
+            "node": "Format Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet: Needs review": {
+      "main": [
+        [
+          {
+            "node": "Format Slack message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack message": {
+      "main": [
+        [
+          {
+            "node": "Notify finance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Asia/Riyadh"
+  },
+  "tags": [
+    {
+      "name": "finance"
+    },
+    {
+      "name": "ai"
+    },
+    {
+      "name": "invoices"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

@@ -1,0 +1,137 @@
+{
+  "name": "Invoices due soon – daily Slack digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 0-4"
+            }
+          ]
+        }
+      },
+      "id": "86a8f42e-9f78-5d9e-a03d-53c2de44ca6c",
+      "name": "Every weekday 8:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "9f4eb52e-b8dd-5f12-9890-0dadcadc5dcf",
+      "name": "Read Invoices sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — \"Find invoices due soon\" (mode: run once for all items)\n// Input: every row of the Invoices sheet. Output: one item with a Slack digest, or nothing.\n\nconst DAYS_AHEAD = 3;\nconst today = new Date();\ntoday.setUTCHours(0, 0, 0, 0);\nconst limit = new Date(today.getTime() + DAYS_AHEAD * 86400000);\n\nconst rows = $input.all().map((i) => i.json);\nconst open = rows.filter((r) => r.status === 'ok' && !r.paid_at && r.due_date);\n\nconst overdue = [];\nconst dueSoon = [];\nfor (const r of open) {\n  const due = new Date(`${r.due_date}T00:00:00Z`);\n  if (Number.isNaN(due.getTime())) continue;\n  if (due < today) overdue.push(r);\n  else if (due <= limit) dueSoon.push(r);\n}\n\nif (!overdue.length && !dueSoon.length) return [];\n\nconst money = (r) => `${r.currency} ${Number(r.total).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;\nconst line = (r) => `• ${r.due_date}  ${r.vendor} #${r.invoice_number}  ${money(r)}`;\nconst sum = (list) => list.reduce((s, r) => s + Number(r.total || 0), 0);\n\nconst parts = [];\nif (overdue.length) parts.push(`:red_circle: *Overdue (${overdue.length})* – SAR ${sum(overdue).toLocaleString('en-US')}\\n${overdue.map(line).join('\\n')}`);\nif (dueSoon.length) parts.push(`:large_yellow_circle: *Due in the next ${DAYS_AHEAD} days (${dueSoon.length})*\\n${dueSoon.map(line).join('\\n')}`);\n\nreturn [{ json: { slack_text: parts.join('\\n\\n'), overdue: overdue.length, due_soon: dueSoon.length } }];\n"
+      },
+      "id": "77d4f92b-2ca3-55e1-ae45-f96b7e615c74",
+      "name": "Find invoices due soon",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#finance-invoices",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "24ebf6c3-e3cf-58ce-a7c4-a4619a2d9508",
+      "name": "Post digest",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Every weekday 8:00": {
+      "main": [
+        [
+          {
+            "node": "Read Invoices sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Invoices sheet": {
+      "main": [
+        [
+          {
+            "node": "Find invoices due soon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find invoices due soon": {
+      "main": [
+        [
+          {
+            "node": "Post digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Asia/Riyadh"
+  },
+  "tags": [
+    {
+      "name": "finance"
+    },
+    {
+      "name": "invoices"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}
